@@ -5,7 +5,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ====================== CONFIGURATION ======================
-const DISCORD_WEBHOOK = "https://discordapp.com/api/webhooks/1561789792893796433/DoH_R2DyuGeI0s3h4MHZ66LDQUL4RT9owsQ3WTXRZZKXUJ6YqmhQE9HqSOOUTAijRzlahttps://discordapp.com/api/webhooks/1561789792893796433/DoH_R2DyuGeI0s3h4MHZ66LDQUL4RT9owsQ3WTXRZZKXUJ6YqmhQE9HqSOOUTAijRzla";
+const DISCORD_WEBHOOK = "https://discordapp.com/api/webhooks/1561789792893796433/DoH_R2DyuGeI0s3h4MHZ66LDQUL4RT9owsQ3WTXRZZKXUJ6YqmhQE9HqSOOUTAijRzla/github";
 const REFRESH_INTERVAL = 7 * 60 * 1000; // 3 minutes
 let previousStatus = {};
 let isRateLimited = false;
