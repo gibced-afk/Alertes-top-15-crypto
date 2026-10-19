@@ -6,10 +6,9 @@ const PORT = process.env.PORT || 3000;
 
 // ====================== CONFIGURATION ======================
 const DISCORD_WEBHOOK = "https://discordapp.com/api/webhooks/1561547598077239346/y32Tj-IkL-Z-Qdk6HNDOOJ6BtAkSSjNkq0Kz4rDxZMKNSFvden5D9GHzLWRmkYxQ95v5";
-const REFRESH_INTERVAL = 3 * 60 * 1000; // 60 secondes
-
-// Mémoire des statuts précédents (en RAM)
+const REFRESH_INTERVAL = 3 * 60 * 1000; // 3 minutes
 let previousStatus = {};
+let isRateLimited = false;
 
 // ====================== FONCTIONS ======================
 function getSignal(coin) {
@@ -51,17 +50,43 @@ async function sendDiscordAlert(crypto, from, to) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    console.log(`Alerte envoyée : ${crypto} ${from} → ${to}`);
+    console.log(`✅ Alerte envoyée : ${crypto} ${from} → ${to}`);
   } catch (error) {
     console.error('Erreur Discord :', error.message);
   }
 }
 
 async function checkCryptos() {
+  // Si on est en rate limit, on saute ce tour
+  if (isRateLimited) {
+    console.log('⏳ En attente à cause du rate limit CoinGecko...');
+    return;
+  }
+
   try {
     const url = 'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=15&page=1&sparkline=false';
-    const response = await fetch(url);
     
+    const response = await fetch(url, {
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'CryptoAlertsBot/1.0'
+      }
+    });
+
+    // Gestion spécifique du 429
+    if (response.status === 429) {
+      console.log('⚠️ Rate limit CoinGecko (429). Pause de 10 minutes.');
+      isRateLimited = true;
+      
+      // On désactive le rate limit après 10 minutes
+      setTimeout(() => {
+        isRateLimited = false;
+        console.log('✅ Rate limit levé, reprise des vérifications.');
+      }, 10 * 60 * 1000);
+      
+      return;
+    }
+
     if (!response.ok) {
       throw new Error(`API Error ${response.status}`);
     }
@@ -74,42 +99,4 @@ async function checkCryptos() {
       const id = coin.id;
       const symbol = coin.symbol.toUpperCase();
 
-      // Détection de changement
-      if (previousStatus[id] && previousStatus[id] !== signal.type) {
-        sendDiscordAlert(symbol, previousStatus[id], signal.type);
-      }
-
-      newStatus[id] = signal.type;
-    });
-
-    previousStatus = newStatus;
-    console.log(`[${new Date().toLocaleTimeString('fr-FR')}] Vérification OK - Top 15 mis à jour`);
-
-  } catch (error) {
-    console.error('Erreur lors de la vérification :', error.message);
-  }
-}
-
-// ====================== SERVEUR (pour garder Render actif) ======================
-app.get('/', (req, res) => {
-  res.send(`
-    <h1>Crypto Alerts - En ligne</h1>
-    <p>Service autonome actif.</p>
-    <p>Dernière vérification en cours...</p>
-  `);
-});
-
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', time: new Date().toISOString() });
-});
-
-// Démarrage
-app.listen(PORT, () => {
-  console.log(`Serveur démarré sur le port ${PORT}`);
-  
-  // Première vérification immédiate
-  checkCryptos();
-  
-  // Puis toutes les 60 secondes
-  setInterval(checkCryptos, REFRESH_INTERVAL);
-});
+      if (previousStatus[id] && previousStatus[id] !== 
