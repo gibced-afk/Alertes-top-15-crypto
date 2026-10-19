@@ -6,7 +6,7 @@ const PORT = process.env.PORT || 3000;
 
 // ====================== CONFIGURATION ======================
 const DISCORD_WEBHOOK = "https://discordapp.com/api/webhooks/1561547598077239346/y32Tj-IkL-Z-Qdk6HNDOOJ6BtAkSSjNkq0Kz4rDxZMKNSFvden5D9GHzLWRmkYxQ95v5";
-const REFRESH_INTERVAL = 3 * 60 * 1000; // 3 minutes
+const REFRESH_INTERVAL = 5 * 60 * 1000; // 3 minutes
 let previousStatus = {};
 let isRateLimited = false;
 
