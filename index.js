@@ -6,7 +6,7 @@ const PORT = process.env.PORT || 3000;
 
 // ====================== CONFIGURATION ======================
 const DISCORD_WEBHOOK = "https://discordapp.com/api/webhooks/1561547598077239346/y32Tj-IkL-Z-Qdk6HNDOOJ6BtAkSSjNkq0Kz4rDxZMKNSFvden5D9GHzLWRmkYxQ95v5";
-const REFRESH_INTERVAL = 5 * 60 * 1000; // 3 minutes
+const REFRESH_INTERVAL = 3 * 60 * 1000; // 3 minutes
 let previousStatus = {};
 let isRateLimited = false;
 
@@ -57,7 +57,6 @@ async function sendDiscordAlert(crypto, from, to) {
 }
 
 async function checkCryptos() {
-  // Si on est en rate limit, on saute ce tour
   if (isRateLimited) {
     console.log('⏳ En attente à cause du rate limit CoinGecko...');
     return;
@@ -73,17 +72,13 @@ async function checkCryptos() {
       }
     });
 
-    // Gestion spécifique du 429
     if (response.status === 429) {
       console.log('⚠️ Rate limit CoinGecko (429). Pause de 10 minutes.');
       isRateLimited = true;
-      
-      // On désactive le rate limit après 10 minutes
       setTimeout(() => {
         isRateLimited = false;
         console.log('✅ Rate limit levé, reprise des vérifications.');
       }, 10 * 60 * 1000);
-      
       return;
     }
 
@@ -99,4 +94,45 @@ async function checkCryptos() {
       const id = coin.id;
       const symbol = coin.symbol.toUpperCase();
 
-      if (previousStatus[id] && previousStatus[id] !== 
+      if (previousStatus[id] && previousStatus[id] !== signal.type) {
+        sendDiscordAlert(symbol, previousStatus[id], signal.type);
+      }
+
+      newStatus[id] = signal.type;
+    });
+
+    previousStatus = newStatus;
+    console.log(`[${new Date().toLocaleTimeString('fr-FR')}] ✅ Vérification OK - Top 15 mis à jour`);
+
+  } catch (error) {
+    console.error('❌ Erreur lors de la vérification :', error.message);
+  }
+}
+
+// ====================== SERVEUR ======================
+app.get('/', (req, res) => {
+  res.send(`
+    <h1>Crypto Alerts - En ligne ✅</h1>
+    <p>Service autonome actif.</p>
+    <p>Vérification toutes les 3 minutes.</p>
+  `);
+});
+
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    time: new Date().toISOString(),
+    rateLimited: isRateLimited
+  });
+});
+
+// Démarrage
+app.listen(PORT, () => {
+  console.log(`🚀 Serveur démarré sur le port ${PORT}`);
+  
+  // Première vérification après 5 secondes
+  setTimeout(checkCryptos, 5000);
+  
+  // Puis toutes les 3 minutes
+  setInterval(checkCryptos, REFRESH_INTERVAL);
+});
